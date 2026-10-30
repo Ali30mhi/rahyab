@@ -1,0 +1,34 @@
+{
+  "pypi": [
+    {"name": "Runflare", "url": "https://mirror-pypi.runflare.com/simple/"},
+    {"name": "Liara", "url": "https://package-mirror.liara.ir/repository/pypi/simple/"}
+  ],
+  "npm": [
+    {"name": "Runflare", "url": "https://mirror-npm.runflare.com/"},
+    {"name": "Liara", "url": "https://package-mirror.liara.ir/repository/npm/"}
+  ],
+  "go": [
+    {"name": "goproxy.cn", "url": "https://goproxy.cn"},
+    {"name": "goproxy.io", "url": "https://goproxy.io"}
+  ],
+  "docker": [
+    {"name": "ArvanCloud", "url": "https://docker.arvancloud.ir"},
+    {"name": "Focker", "url": "https://focker.ir"},
+    {"name": "Kernel", "url": "https://docker.kernel.ir"},
+    {"name": "Liara", "url": "https://docker-mirror.liara.ir"},
+    {"name": "Runflare", "url": "https://mirror-docker.runflare.com"},
+    {"name": "HamDocker", "url": "https://hub.hamdocker.ir"},
+    {"name": "MobinHost", "url": "https://docker.mobinhost.com"}
+  ],
+  "ubuntu": [
+    {"name": "ArvanCloud", "url": "https://mirror.arvancloud.ir/ubuntu"},
+    {"name": "IranServer", "url": "https://mirror.iranserver.com/ubuntu"},
+    {"name": "Shatel", "url": "https://mirror.shatel.ir/ubuntu"},
+    {"name": "Ubuntu IR", "url": "http://ir.archive.ubuntu.com/ubuntu"}
+  ],
+  "debian": [
+    {"name": "ArvanCloud", "url": "https://mirror.arvancloud.ir/debian"},
+    {"name": "IranServer", "url": "https://mirror.iranserver.com/debian"},
+    {"name": "Shatel", "url": "https://mirror.shatel.ir/debian"}
+  ]
+}
