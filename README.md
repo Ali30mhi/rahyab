@@ -9,23 +9,10 @@ picks the best one and configures your tools. Everything is reversible with `rah
 
 ## Example
 
-```
-$ rahyab fix --no-proxy
+![rahyab fix --no-proxy](docs/demo.svg)
 
-== pip ==
-  ✓  Runflare             315ms   ok       26.2.2
-  ✓  Liara                497ms   ok       26.2.2
-  ✗  Official (pypi.org)  10.01s  timeout
-  → best: Runflare  https://mirror-pypi.runflare.com/simple/
-
-== apt ==
-  ✓  Shatel                     213ms    ok       updated 13h ago
-  ✓  ArvanCloud                 227ms    ok       updated 1h ago
-  !  IranServer                 291ms    ok       updated 11d ago (outdated)
-  ✗  Official (deb.debian.org)  10.008s  timeout
-```
-
-`!` means the mirror answers fast but is **11 days behind**. Latency alone can't tell you that.
+Here IranServer is the **fastest** apt mirror, but it's **11 days behind**.
+A tool that only measures speed would pick it. rahyab skips it and picks ArvanCloud, updated 2 hours ago.
 
 ## Why rahyab
 

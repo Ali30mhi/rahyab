@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="760" height="660" viewBox="0 0 760 660">
+<style>
+text{font-family:'DejaVu Sans Mono','SFMono-Regular',Menlo,Consolas,'Liberation Mono',monospace;font-size:14px;fill:#c9d1d9;white-space:pre}
+.h{fill:#79c0ff;font-weight:bold}.ok{fill:#3fb950}.warn{fill:#d29922}.bad{fill:#f85149}
+.dim{fill:#8b949e}.best{fill:#58a6ff}.p{fill:#7ee787}.t{fill:#8b949e;font-size:12px}
+</style>
+<rect width="760" height="660" rx="10" fill="#0d1117"/>
+<rect width="760" height="36" rx="10" fill="#161b22"/>
+<rect y="26" width="760" height="10" fill="#161b22"/>
+<circle cx="20" cy="18" r="6" fill="#ff5f56"/><circle cx="40" cy="18" r="6" fill="#ffbd2e"/><circle cx="60" cy="18" r="6" fill="#27c93f"/>
+<text x="380" y="22" text-anchor="middle" class="t">rahyab</text>
+
+<text x="24" y="68"><tspan class="p">$</tspan> rahyab fix --dry-run --no-proxy</text>
+
+<text x="24" y="110" class="h">== pip ==</text>
+<text x="40" y="131" class="ok">✓</text><text x="64" y="131">Liara</text><text x="316" y="131">390ms</text><text x="391" y="131">ok</text><text x="466" y="131">26.2.2</text>
+<text x="40" y="152" class="ok">✓</text><text x="64" y="152">Official (pypi.org)</text><text x="316" y="152">494ms</text><text x="391" y="152">ok</text><text x="466" y="152">26.2.2</text>
+<text x="40" y="173" class="ok">✓</text><text x="64" y="173">Runflare</text><text x="316" y="173">750ms</text><text x="391" y="173">ok</text><text x="466" y="173">26.2.2</text>
+<text x="40" y="194" class="best">→ best: Liara  https://package-mirror.liara.ir/repository/pypi/simple/</text>
+<text x="40" y="215" class="dim">(dry run, nothing changed)</text>
+
+<text x="24" y="257" class="h">== npm ==</text>
+<text x="40" y="278" class="ok">✓</text><text x="64" y="278">Liara</text><text x="316" y="278">181ms</text><text x="391" y="278">ok</text><text x="466" y="278">7.8.5</text>
+<text x="40" y="299" class="ok">✓</text><text x="64" y="299">Runflare</text><text x="316" y="299">500ms</text><text x="391" y="299">ok</text><text x="466" y="299">7.8.5</text>
+<text x="40" y="320" class="ok">✓</text><text x="64" y="320">Official (npmjs)</text><text x="316" y="320">1.165s</text><text x="391" y="320">ok</text><text x="466" y="320">7.8.5</text>
+<text x="40" y="341" class="ok">✓ already using the best option (Liara)</text>
+
+<text x="24" y="383" class="h">== go ==</text>
+<text x="40" y="404" class="ok">✓</text><text x="64" y="404">Official (proxy.golang.org)</text><text x="316" y="404">419ms</text><text x="391" y="404">ok</text><text x="466" y="404">v0.43.0</text>
+<text x="40" y="425" class="ok">✓</text><text x="64" y="425">goproxy.io</text><text x="316" y="425">1.022s</text><text x="391" y="425">ok</text><text x="466" y="425">v0.43.0</text>
+<text x="40" y="446" class="ok">✓</text><text x="64" y="446">goproxy.cn</text><text x="316" y="446">4.81s</text><text x="391" y="446">ok</text><text x="466" y="446">v0.43.0</text>
+<text x="40" y="467" class="ok">✓ already using the best option (Official (proxy.golang.org))</text>
+
+<text x="24" y="509" class="h">== apt ==</text>
+<rect x="28" y="557" width="704" height="21" rx="4" fill="#d29922" fill-opacity="0.15"/>
+<text x="40" y="530" class="ok">✓</text><text x="64" y="530">ArvanCloud</text><text x="316" y="530">438ms</text><text x="391" y="530">ok</text><text x="466" y="530">updated 2h ago</text>
+<text x="40" y="551" class="ok">✓</text><text x="64" y="551">Shatel</text><text x="316" y="551">481ms</text><text x="391" y="551">ok</text><text x="466" y="551">updated 14h ago</text>
+<text x="40" y="572" class="warn">!</text><text x="64" y="572">IranServer</text><text x="316" y="572">363ms</text><text x="391" y="572">ok</text><text x="466" y="572" class="warn">updated 11d ago (outdated)</text>
+<text x="40" y="593" class="bad">✗</text><text x="64" y="593">Official (deb.debian.org)</text><text x="316" y="593">10.001s</text><text x="391" y="593" class="bad">timeout</text>
+<text x="40" y="614" class="best">→ best: ArvanCloud  https://mirror.arvancloud.ir/debian</text>
+<text x="40" y="635" class="dim">(dry run, nothing changed)</text>
+</svg>

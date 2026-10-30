@@ -13,25 +13,12 @@
 
 </div>
 
-```
-$ rahyab fix --no-proxy
-
-== pip ==
-  ✓  Runflare             315ms   ok       26.2.2
-  ✓  Liara                497ms   ok       26.2.2
-  ✗  Official (pypi.org)  10.01s  timeout
-  → best: Runflare  https://mirror-pypi.runflare.com/simple/
-
-== apt ==
-  ✓  Shatel                     213ms    ok       updated 13h ago
-  ✓  ArvanCloud                 227ms    ok       updated 1h ago
-  !  IranServer                 291ms    ok       updated 11d ago (outdated)
-  ✗  Official (deb.debian.org)  10.008s  timeout
-```
+![rahyab fix --no-proxy](docs/demo.svg)
 
 <div dir="rtl">
 
-علامت `!` یعنی میرور سریع جواب می‌دهد اما **۱۱ روز عقب است**. فقط با سنجش سرعت نمی‌شود این را فهمید.
+اینجا IranServer **سریع‌ترین** میرور apt است، اما **۱۱ روز عقب** است.
+ابزاری که فقط سرعت را بسنجد همین را انتخاب می‌کرد. راه‌یاب آن را کنار گذاشت و ArvanCloud را انتخاب کرد که ۲ ساعت پیش به‌روز شده است.
 
 ## چرا راه‌یاب؟
 
