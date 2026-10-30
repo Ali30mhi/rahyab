@@ -10,6 +10,9 @@ import (
 
 var version = "dev"
 
+// One shared reader, so piped input (e.g. `yes | rahyab fix`) isn't lost between questions.
+var stdin = bufio.NewReader(os.Stdin)
+
 type options struct {
 	yes     bool
 	dryRun  bool
@@ -50,6 +53,9 @@ func parseArgs(args []string) (options, error) {
 			d, err := time.ParseDuration(strings.TrimPrefix(a, "--timeout="))
 			if err != nil {
 				return o, fmt.Errorf("bad --timeout: %v", err)
+			}
+			if d <= 0 {
+				return o, fmt.Errorf("--timeout must be greater than zero")
 			}
 			o.timeout = d
 		case strings.HasPrefix(a, "--mirrors="):
@@ -101,7 +107,7 @@ func confirm(o options, question string) bool {
 		return true
 	}
 	fmt.Printf("%s [y/N] ", question)
-	line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	line, _ := stdin.ReadString('\n')
 	line = strings.ToLower(strings.TrimSpace(line))
 	return line == "y" || line == "yes"
 }

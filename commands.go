@@ -72,8 +72,13 @@ func runFix(o options) error {
 		}
 	}
 	if isRoot() && os.Getenv("SUDO_USER") != "" {
-		fmt.Println("note: running with sudo, so pip/npm/go settings will be set for root, not for you.")
-		fmt.Println("      Use sudo only for `rahyab fix docker`.")
+		for _, t := range tools {
+			if t == "pip" || t == "npm" || t == "go" {
+				fmt.Println("note: running with sudo, so pip/npm/go settings will be set for root, not for you.")
+				fmt.Println("      Use sudo only for `rahyab fix docker` and `rahyab fix apt`.")
+				break
+			}
+		}
 	}
 	c := newClient(o.timeout)
 	for _, t := range tools {
@@ -204,6 +209,10 @@ func detectApt() (kind, codename string, err error) {
 	}
 	if codename == "" {
 		return "", "", fmt.Errorf("couldn't detect release codename")
+	}
+	// Ubuntu on ARM etc. lives on ports.ubuntu.com, which these mirrors don't carry.
+	if kind == "ubuntu" && runtime.GOARCH != "amd64" && runtime.GOARCH != "386" {
+		return "", "", fmt.Errorf("ubuntu on %s uses ports.ubuntu.com, which these mirrors don't carry", runtime.GOARCH)
 	}
 	return kind, codename, nil
 }

@@ -33,22 +33,24 @@ func aptCurrent() string {
 //	deb822:  URIs: http://deb.debian.org/debian
 //	classic: deb [arch=amd64] http://deb.debian.org/debian trixie main
 func aptURIs(line string) []string {
-	switch {
-	case strings.HasPrefix(line, "URIs:"):
-		return strings.Fields(strings.TrimPrefix(line, "URIs:"))
-	case strings.HasPrefix(line, "deb "):
-		f := strings.Fields(line)[1:]
-		if len(f) > 0 && strings.HasPrefix(f[0], "[") {
-			for len(f) > 0 && !strings.HasSuffix(f[0], "]") {
-				f = f[1:]
-			}
-			if len(f) > 0 {
-				f = f[1:]
-			}
+	if len(line) >= 5 && strings.EqualFold(line[:5], "URIs:") {
+		return strings.Fields(line[5:])
+	}
+	f := strings.Fields(line)
+	if len(f) < 2 || f[0] != "deb" {
+		return nil
+	}
+	f = f[1:]
+	if strings.HasPrefix(f[0], "[") {
+		for len(f) > 0 && !strings.HasSuffix(f[0], "]") {
+			f = f[1:]
 		}
 		if len(f) > 0 {
-			return f[:1]
+			f = f[1:]
 		}
+	}
+	if len(f) > 0 {
+		return f[:1]
 	}
 	return nil
 }
