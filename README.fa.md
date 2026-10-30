@@ -1,0 +1,102 @@
+<div dir="rtl">
+
+# rahyab 🧭 (راه‌یاب)
+
+[English](README.md)
+
+**با یک دستور، pip و npm و go و docker دوباره در ایران کار می‌کنند.**
+
+راه‌یاب همه‌ی میرورهای شناخته‌شده را *واقعاً* تست می‌کند، بررسی می‌کند به‌روز باشند،
+بهترین را انتخاب و روی ابزارهایتان تنظیم می‌کند. همه‌چیز با `rahyab undo` برگشت‌پذیر است.
+
+## نمونه
+
+</div>
+
+```
+$ rahyab fix --no-proxy
+
+== pip ==
+  ✓  Runflare             315ms   ok       26.2.2
+  ✓  Liara                497ms   ok       26.2.2
+  ✗  Official (pypi.org)  10.01s  timeout
+  → best: Runflare  https://mirror-pypi.runflare.com/simple/
+
+== apt ==
+  ✓  Shatel                     213ms    ok       updated 13h ago
+  ✓  ArvanCloud                 227ms    ok       updated 1h ago
+  !  IranServer                 291ms    ok       updated 11d ago (outdated)
+  ✗  Official (deb.debian.org)  10.008s  timeout
+```
+
+<div dir="rtl">
+
+علامت `!` یعنی میرور سریع جواب می‌دهد اما **۱۱ روز عقب است**. فقط با سنجش سرعت نمی‌شود این را فهمید.
+
+## چرا راه‌یاب؟
+
+- **درخواست واقعی، نه ping.** از هر میرور دقیقاً همان چیزی را می‌خواهد که pip یا npm می‌خواهند و درستی جواب را هم بررسی می‌کند.
+- **تشخیص میرور قدیمی.** نسخه‌ی پکیج‌ها و تاریخ به‌روزرسانی apt را مقایسه می‌کند و میرورهای عقب‌مانده را علامت می‌زند.
+- **تغییر بی‌دلیل نمی‌دهد.** اگر منبع اصلی بهترین باشد (مثلاً با VPN)، همان را نگه می‌دارد.
+- **یک فایل اجرایی** برای لینوکس، مک و ویندوز. بدون نیاز به پایتون. بدون نیاز به root (جز داکر روی لینوکس).
+- **`undo`** تنظیمات اولیه‌ی شما را دقیقاً برمی‌گرداند.
+
+## نصب
+
+**لینوکس**
+
+</div>
+
+```
+curl -L -o rahyab https://github.com/Ali30mhi/rahyab/releases/latest/download/rahyab-linux-amd64
+chmod +x rahyab && sudo mv rahyab /usr/local/bin/
+```
+
+<div dir="rtl">
+
+**مک:** فایل `rahyab-darwin-arm64` (مک‌های M1 به بعد) یا `rahyab-darwin-amd64` (اینتل) را از
+[Releases](../../releases) دانلود کنید، با `chmod +x` اجرایی‌اش کنید و سپس `xattr -d com.apple.quarantine rahyab` را بزنید.
+
+**ویندوز:** فایل `rahyab-windows-amd64.exe` را از [Releases](../../releases) دانلود و در PowerShell اجرا کنید.
+
+## استفاده
+
+</div>
+
+```
+rahyab doctor            # چه چیزی بسته است؟ (چیزی را تغییر نمی‌دهد)
+rahyab fix               # درست کردن همه‌ی ابزارهای نصب‌شده
+rahyab fix pip npm       # فقط این‌ها
+rahyab fix --dry-run     # فقط نشان بده چه چیزی عوض می‌شود
+sudo rahyab fix docker   # داکر روی لینوکس root می‌خواهد
+rahyab status            # تنظیمات فعلی
+rahyab undo              # برگرداندن همه‌چیز
+```
+
+<div dir="rtl">
+
+**VPN روشن است؟** راه‌یاب به‌طور پیش‌فرض از همان مسیری تست می‌کند که ابزارهای شما استفاده می‌کنند
+(از جمله `HTTP(S)_PROXY`)، پس نتیجه همین حالا برای شما کار می‌کند. برای تست شبکه‌ی مستقیم ایران، `--no-proxy` را اضافه کنید.
+
+## پشتیبانی
+
+| ابزار | خودکار | توضیح |
+|-------|--------|-------|
+| pip | ✅ | تنظیم کاربر، بدون root |
+| npm | ✅ | تنظیم کاربر، بدون root |
+| go | ✅ | `GOPROXY` |
+| docker | ✅ لینوکس | Docker Desktop: تنظیم را برای کپی نشان می‌دهد |
+| apt | پیشنهاد | تغییر خودکار در برنامه است |
+
+## مشارکت
+
+میرور خوبی می‌شناسید؟ آن را به `mirrors.json` اضافه کنید و PR بفرستید. نیازی به بلد بودن Go نیست.
+اول با `rahyab fix --dry-run --mirrors=mirrors.json` تستش کنید.
+
+داده‌های میرورها بر پایه‌ی پروژه‌ی جامعه‌محور [Mirava](https://github.com/MiravaOrg/Mirava) است. ممنون از آن‌ها!
+
+## مجوز
+
+MIT
+
+</div>

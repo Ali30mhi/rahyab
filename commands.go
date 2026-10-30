@@ -107,7 +107,7 @@ func fixOne(c *http.Client, o options, ml MirrorList, tool string) error {
 	if !best.OK {
 		return fmt.Errorf("no working mirror right now; try again later or pass --mirrors=FILE")
 	}
-	if tool != "apt" && sameURL(ad.current(), best.URL, upstream[kind].URL) {
+	if cur := ad.current(); !(tool == "apt" && cur == "") && sameURL(cur, best.URL, upstream[kind].URL) {
 		fmt.Printf("  ✓ already using the best option (%s)\n", best.Name)
 		return nil
 	}
@@ -130,7 +130,7 @@ func runStatus() error {
 		switch {
 		case ad.available() != nil:
 			val = "not available"
-		case t == "apt":
+		case t == "apt" && ad.current() == "":
 			val = "(see /etc/apt/sources.list.d)"
 		default:
 			val = ad.current()
@@ -211,6 +211,7 @@ func detectApt() (kind, codename string, err error) {
 func sameURL(cur, best, official string) bool {
 	norm := func(s string) string {
 		s = strings.ToLower(strings.TrimSpace(s))
+		s = strings.TrimPrefix(strings.TrimPrefix(s, "https://"), "http://")
 		if i := strings.Index(s, ","); i >= 0 {
 			s = s[:i]
 		}

@@ -250,7 +250,7 @@ func aptAdapter() adapter {
 			}
 			return need("apt-get")()
 		},
-		current:  func() string { return "" },
+		current:  aptCurrent,
 		snapshot: func() (string, bool) { return "", false },
 		set: func(url string) error {
 			fmt.Printf("  To use it, replace the mirror address in /etc/apt/sources.list.d/*.sources\n  (or /etc/apt/sources.list) with:\n    %s\n  then run: sudo apt-get update\n  (automatic apt switching is coming in v0.2)\n", url)
