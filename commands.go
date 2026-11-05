@@ -74,8 +74,11 @@ func runFix(o options) error {
 	if err != nil {
 		return err
 	}
+	noteAptMirrors(ml)
+
+	implicit := len(o.tools) == 0
 	tools := o.tools
-	if len(tools) == 0 {
+	if implicit {
 		for _, t := range toolOrder {
 			if adapters[t].available() == nil {
 				tools = append(tools, t)
@@ -85,22 +88,40 @@ func runFix(o options) error {
 			return fmt.Errorf("none of %s found", strings.Join(toolOrder, ", "))
 		}
 	}
-	if !o.print && isRoot() && os.Getenv("SUDO_USER") != "" {
-		for _, t := range tools {
-			if t == "pip" || t == "npm" || t == "go" {
-				fmt.Println("note: running with sudo, so pip/npm/go settings will be set for root, not for you.")
-				fmt.Println("      Use sudo only for `rahyab fix docker`.")
-				break
-			}
-		}
-	}
+
+	// pip/npm/go settings are per-user, docker/apt are system-wide. With no
+	// tools named, `rahyab fix` does the first group and `sudo rahyab fix`
+	// the second, so neither ends up configured for the wrong account.
+	changes := !o.dryRun && !o.print
+	sudoUser := isRoot() && os.Getenv("SUDO_USER") != ""
+	var needSudo, skippedUser []string
+
 	c := newClient(o.timeout)
 	failed := false
 	for _, t := range tools {
+		if implicit && changes {
+			if isSystemTool(t) && needRoot() != nil {
+				needSudo = append(needSudo, t)
+				continue
+			}
+			if sudoUser && !isSystemTool(t) {
+				skippedUser = append(skippedUser, t)
+				continue
+			}
+		}
+		if !implicit && changes && sudoUser && !isSystemTool(t) {
+			fmt.Printf("note: running with sudo, so %s will be set up for root, not for you.\n", t)
+		}
 		if err := fixOne(c, o, ml, t); err != nil {
 			fmt.Printf("  %s: %v\n", t, err)
 			failed = true
 		}
+	}
+	if len(needSudo) > 0 {
+		fmt.Printf("\n%s change system files: run `sudo rahyab fix` for them.\n", strings.Join(needSudo, " and "))
+	}
+	if len(skippedUser) > 0 {
+		fmt.Printf("\nskipped %s under sudo (they're per-user): run `rahyab fix` without sudo.\n", strings.Join(skippedUser, ", "))
 	}
 	if failed {
 		return errors.New("some tools could not be fixed (see above)")
@@ -127,7 +148,7 @@ func fixOne(c *http.Client, o options, ml MirrorList, tool string) error {
 			return err
 		}
 	}
-	official := upstream[kind]
+	official := officialFor(tool, kind)
 	list := append([]Mirror{official}, ml[kind]...)
 	res := probeAll(c, kind, list, codename)
 	printResults(tool, res)
@@ -165,7 +186,7 @@ func fixOne(c *http.Client, o options, ml MirrorList, tool string) error {
 		fmt.Println("  (dry run, nothing changed)")
 		return nil
 	}
-	if tool != "apt" && !confirm(o, fmt.Sprintf("  switch %s to %s?", tool, best.Name)) {
+	if !confirm(o, fmt.Sprintf("  switch %s to %s?", tool, best.Name)) {
 		return nil
 	}
 	return applyChange(tool, ad, urls)
@@ -180,7 +201,7 @@ func runStatus() error {
 		case ad.available() != nil:
 			val = "not available"
 		case t == "apt" && ad.current() == "":
-			val = "(see /etc/apt/sources.list.d)"
+			val = "(main archive not recognized, see /etc/apt/sources.list.d)"
 		default:
 			val = ad.current()
 			if val == "" {

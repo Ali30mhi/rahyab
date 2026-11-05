@@ -331,34 +331,6 @@ func needRoot() error {
 	return nil
 }
 
-func aptHint(urls []string) string {
-	return fmt.Sprintf("To use it, replace the mirror address in /etc/apt/sources.list.d/*.sources\n"+
-		"  (or /etc/apt/sources.list) with:\n    %s\n  then run: sudo apt-get update", first(urls))
-}
-
-func aptAdapter() adapter {
-	return adapter{
-		kind: "apt",
-		keep: 1,
-		available: func() error {
-			if runtime.GOOS != "linux" {
-				return errors.New("Linux only")
-			}
-			return need("apt-get")()
-		},
-		current:  aptCurrent,
-		snapshot: func() (string, bool) { return "", false },
-		value:    first,
-		set: func(urls []string) error {
-			fmt.Println("  " + aptHint(urls))
-			fmt.Println("  (automatic apt switching is coming in v0.2)")
-			return errManual
-		},
-		restore:  func(string, bool) error { return nil },
-		printCmd: aptHint,
-	}
-}
-
 // ---- undo state ----
 
 type change struct {
@@ -371,7 +343,7 @@ type change struct {
 // System-wide settings are changed with sudo; keeping their undo info in
 // root's home would hide it from a plain `rahyab undo` or `rahyab status`.
 func isSystemTool(tool string) bool {
-	return runtime.GOOS == "linux" && tool == "docker" // add apt once it's automated
+	return runtime.GOOS == "linux" && (tool == "docker" || tool == "apt")
 }
 
 func stateStores() []bool {

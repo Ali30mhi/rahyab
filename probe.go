@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -339,17 +338,7 @@ func probeAll(c *http.Client, kind string, list []Mirror, codename string) []Res
 		}(i, m)
 	}
 	wg.Wait()
-	markStale(res)
-	sort.SliceStable(res, func(i, j int) bool {
-		a, b := res[i], res[j]
-		if a.OK != b.OK {
-			return a.OK
-		}
-		if a.Stale != b.Stale {
-			return !a.Stale
-		}
-		return a.Latency < b.Latency
-	})
+	rank(res)
 	return res
 }
 
