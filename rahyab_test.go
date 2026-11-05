@@ -198,8 +198,8 @@ func TestProbeGoNeedsSumdb(t *testing.T) {
 	if r := probe(c, "go", Mirror{URL: goTestServer(t, true).URL}, ""); !r.OK || r.Version != "v0.20.0" {
 		t.Fatalf("with sumdb: got ok=%v %q %q", r.OK, r.Status, r.Version)
 	}
-	if r := probe(c, "go", Mirror{URL: goTestServer(t, false).URL}, ""); r.OK {
-		t.Fatal("without sumdb: want not ok")
+	if r := probe(c, "go", Mirror{URL: goTestServer(t, false).URL}, ""); !r.OK || !r.NoSumDB {
+		t.Fatal("without sumdb: want ok, flagged NoSumDB")
 	}
 }
 

@@ -40,7 +40,7 @@ Flags:
   --print            print the commands instead of running them (scripts, Dockerfiles)
   --force            undo: restore even if you changed the setting yourself since
   --no-proxy         ignore the proxy/VPN and test the direct connection
-  --offline          don't fetch the latest mirror list, use the built-in one
+  --offline          don't fetch the latest mirror list, use the built-in or cached one
   --timeout=10s      timeout per request
   --mirrors=FILE     use a custom mirrors.json
 `

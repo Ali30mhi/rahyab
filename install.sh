@@ -1,8 +1,9 @@
 #!/bin/sh
-# Installs the latest rahyab for this OS/CPU and verifies its SHA-256.
+# Installs the latest rahyab (or $RAHYAB_VERSION) for this OS/CPU and
+# verifies its SHA-256 against the release's checksums.txt.
 set -eu
 
-base="https://github.com/Ali30mhi/rahyab/releases/latest/download"
+repo="Ali30mhi/rahyab"
 
 case "$(uname -s)" in
   Linux) os=linux ;;
@@ -15,11 +16,25 @@ case "$(uname -m)" in
   *) echo "unsupported CPU $(uname -m)" >&2; exit 1 ;;
 esac
 
+# Resolve the tag first and download everything from that exact release:
+# the /latest/download/ shortcut can serve the previous release for a few
+# minutes after a new one, and the binary and checksums must match.
+tag="${RAHYAB_VERSION:-}"
+if [ -z "$tag" ]; then
+  tag=$(curl -fsSI "https://github.com/$repo/releases/latest" | tr -d '\r' |
+    awk 'tolower($1) == "location:" { n = split($2, p, "/"); print p[n] }')
+fi
+if [ -z "$tag" ]; then
+  echo "couldn't find the latest release" >&2
+  exit 1
+fi
+
+base="https://github.com/$repo/releases/download/$tag"
 name="rahyab-$os-$arch"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-echo "downloading $name..."
+echo "downloading rahyab $tag ($name)..."
 curl -fL --retry 3 -o "$tmp/$name" "$base/$name"
 
 if curl -fsL --retry 3 -o "$tmp/checksums.txt" "$base/checksums.txt"; then

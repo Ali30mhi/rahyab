@@ -14,40 +14,48 @@ import (
 )
 
 func runDoctor(o options) error {
-	fmt.Println("Checking direct access (nothing will be changed)...")
+	fmt.Println("Checking access (nothing will be changed)...")
 	c := newClient(o.timeout)
-	checks := []Mirror{
-		{"PyPI (pip)", "https://pypi.org/simple/pip/"},
-		{"npm registry", "https://registry.npmjs.org/-/ping"},
-		{"Go proxy", "https://proxy.golang.org/golang.org/x/text/@latest"},
-		{"Docker Hub (pull)", upstream["docker"].URL},
-		{"GitHub", "https://github.com/"},
-		{"Google", "https://www.google.com/"},
+	type check struct {
+		name, url string
+		anyAnswer bool // Iranian mirror: any HTTP answer means it's reachable
+	}
+	checks := []check{
+		{"PyPI (pip)", "https://pypi.org/simple/pip/", false},
+		{"npm registry", "https://registry.npmjs.org/-/ping", false},
+		{"Go proxy", "https://proxy.golang.org/golang.org/x/text/@latest", false},
+		{"Docker Hub (pull)", upstream["docker"].URL, false},
+		{"GitHub", "https://github.com/", false},
+		{"Google", "https://www.google.com/", false},
+	}
+	host := domesticHost()
+	if host != "" {
+		checks = append(checks, check{"Iranian mirror (" + host + ")", "https://" + host + "/", true})
 	}
 	type row struct{ name, verdict, lat string }
 	rows := make([]row, len(checks))
 	var wg sync.WaitGroup
 	for i, ch := range checks {
 		wg.Add(1)
-		go func(i int, ch Mirror) {
+		go func(i int, ch check) {
 			defer wg.Done()
 			var code int
 			var d time.Duration
 			var err error
-			if ch.URL == upstream["docker"].URL {
+			if ch.url == upstream["docker"].URL {
 				// A 401 from /v2/ isn't enough: a pull also needs a token and a manifest.
-				code, d, err = probeDocker(c, ch.URL)
+				code, d, err = probeDocker(c, ch.url)
 			} else {
-				code, _, d, err = httpGet(c, ch.URL, "")
+				code, _, d, err = httpGet(c, ch.url, "")
 			}
-			r := row{name: ch.Name, lat: d.Round(time.Millisecond).String()}
+			r := row{name: ch.name, lat: d.Round(time.Millisecond).String()}
 			switch {
 			case err != nil:
 				r.verdict = "✗ " + shortErr(err)
+			case ch.anyAnswer || code < 400:
+				r.verdict = "✓ ok"
 			case code == 403 || code == 451:
 				r.verdict = fmt.Sprintf("✗ HTTP %d (blocked)", code)
-			case code < 400:
-				r.verdict = "✓ ok"
 			default:
 				r.verdict = fmt.Sprintf("? HTTP %d", code)
 			}
@@ -60,13 +68,30 @@ func runDoctor(o options) error {
 		fmt.Fprintf(w, "  %s\t%s\t%s\n", r.name, r.verdict, r.lat)
 	}
 	w.Flush()
+
+	if host != "" && !dnsWorks(host) {
+		fmt.Println("\n  " + dnsHint)
+	}
+	if !intlUp() {
+		fmt.Println("\nInternational internet looks down: `rahyab fix` will use Iranian mirrors only.")
+	}
 	for _, t := range toolOrder {
 		if ov := envOverride(t); ov != "" {
-			fmt.Printf("\nnote: %s is set in your environment; it overrides %s's config file.", ov, t)
+			fmt.Printf("\nnote: %s is set in your environment; it overrides %s's config file.\n", ov, t)
 		}
 	}
-	fmt.Println("\n\nRun `rahyab fix` to switch your tools to the best working mirror.")
+	fmt.Println("\nRun `rahyab fix` to switch your tools to the best working mirror.")
 	return nil
+}
+
+// plan is one tool's probe results: gathered for all tools in parallel,
+// then shown and applied one tool at a time.
+type plan struct {
+	tool, kind, codename string
+	ad                   adapter
+	official             Mirror
+	res                  []Result
+	err                  error
 }
 
 func runFix(o options) error {
@@ -94,10 +119,7 @@ func runFix(o options) error {
 	// the second, so neither ends up configured for the wrong account.
 	changes := !o.dryRun && !o.print
 	sudoUser := isRoot() && os.Getenv("SUDO_USER") != ""
-	var needSudo, skippedUser []string
-
-	c := newClient(o.timeout)
-	failed := false
+	var todo, needSudo, skippedUser []string
 	for _, t := range tools {
 		if implicit && changes {
 			if isSystemTool(t) && needRoot() != nil {
@@ -112,11 +134,36 @@ func runFix(o options) error {
 		if !implicit && changes && sudoUser && !isSystemTool(t) {
 			fmt.Printf("note: running with sudo, so %s will be set up for root, not for you.\n", t)
 		}
-		if err := fixOne(c, o, ml, t); err != nil {
-			fmt.Printf("  %s: %v\n", t, err)
-			failed = true
+		todo = append(todo, t)
+	}
+
+	failed := false
+	if len(todo) > 0 {
+		online := intlUp()
+		if !online {
+			fmt.Println("International internet looks down: skipping official sources, using Iranian mirrors only.")
+		}
+		// Probe all tools at once: during a shutdown every dead mirror costs
+		// a full timeout, and going tool by tool would add those up.
+		c := newClient(o.timeout)
+		plans := make([]plan, len(todo))
+		var wg sync.WaitGroup
+		for i, t := range todo {
+			wg.Add(1)
+			go func(i int, t string) {
+				defer wg.Done()
+				plans[i] = prepare(c, o, ml, t, online)
+			}(i, t)
+		}
+		wg.Wait()
+		for _, p := range plans {
+			if err := apply(o, p, online); err != nil {
+				fmt.Printf("  %s: %v\n", p.tool, err)
+				failed = true
+			}
 		}
 	}
+
 	if len(needSudo) > 0 {
 		fmt.Printf("\n%s change system files: run `sudo rahyab fix` for them.\n", strings.Join(needSudo, " and "))
 	}
@@ -129,67 +176,95 @@ func runFix(o options) error {
 	return nil
 }
 
-func fixOne(c *http.Client, o options, ml MirrorList, tool string) error {
+func prepare(c *http.Client, o options, ml MirrorList, tool string, online bool) plan {
+	p := plan{tool: tool}
 	ad, ok := adapters[tool]
 	if !ok {
-		return fmt.Errorf("unknown tool (use: %s)", strings.Join(toolOrder, ", "))
+		p.err = fmt.Errorf("unknown tool (use: %s)", strings.Join(toolOrder, ", "))
+		return p
 	}
+	p.ad = ad
 	// --print is for other machines (e.g. a Dockerfile), so the tool
 	// doesn't have to be installed here.
 	if !o.print {
 		if err := ad.available(); err != nil {
-			return err
+			p.err = err
+			return p
 		}
 	}
-	kind, codename := ad.kind, ""
+	p.kind = ad.kind
 	if tool == "apt" {
-		var err error
-		if kind, codename, err = detectApt(); err != nil {
-			return err
+		kind, codename, err := detectApt()
+		if err != nil {
+			p.err = err
+			return p
+		}
+		p.kind, p.codename = kind, codename
+	}
+	p.official = officialFor(tool, p.kind)
+	list := ml[p.kind]
+	if online {
+		list = append([]Mirror{p.official}, list...)
+	}
+	p.res = probeAll(c, p.kind, list, p.codename)
+	if !online {
+		p.res = append(p.res, Result{Mirror: p.official, Status: "skipped (no international internet)", Skipped: true})
+		if p.kind == "go" {
+			preferSumDB(p.res)
 		}
 	}
-	official := officialFor(tool, kind)
-	list := append([]Mirror{official}, ml[kind]...)
-	res := probeAll(c, kind, list, codename)
-	printResults(tool, res)
-	best := res[0]
+	return p
+}
+
+func apply(o options, p plan, online bool) error {
+	if p.err != nil {
+		return p.err
+	}
+	printResults(p.tool, p.res)
+	best := p.res[0]
 	if !best.OK {
+		if allDNSFailed(p.res) {
+			fmt.Println("  " + dnsHint)
+		}
 		return fmt.Errorf("no working mirror right now; try again later or pass --mirrors=FILE")
 	}
 
 	var urls []string
-	if kind == "docker" {
+	if p.kind == "docker" {
 		// Docker Hub isn't a mirror: "use the official one" means no registry-mirrors.
-		if best.URL != official.URL {
-			urls = pick(res, ad.keep, official.URL)
+		if best.URL != p.official.URL {
+			urls = pick(p.res, p.ad.keep, p.official.URL)
 		}
 	} else {
-		urls = pick(res, ad.keep, "")
+		urls = pick(p.res, p.ad.keep, "")
 	}
 
 	if o.print {
-		fmt.Println(ad.printCmd(urls))
+		fmt.Println(p.ad.printCmd(urls))
+		shutdownNotes(p, best, online)
 		return nil
 	}
-	if cur := ad.current(); !(tool == "apt" && cur == "") && sameURL(cur, best.URL, official.URL) {
+	if cur := p.ad.current(); !(p.tool == "apt" && cur == "") && sameURL(cur, best.URL, p.official.URL) {
 		fmt.Printf("  ✓ already using the best option (%s)\n", best.Name)
+		shutdownNotes(p, best, online)
 		return nil
 	}
-	if ov := envOverride(tool); ov != "" {
+	if ov := envOverride(p.tool); ov != "" {
 		return fmt.Errorf("%s is set in your environment and overrides the config file; remove it from your shell profile, then run this again", ov)
 	}
 	fmt.Printf("  → best: %s  %s\n", best.Name, best.URL)
 	if len(urls) > 1 {
 		fmt.Printf("    fallback: %s\n", strings.Join(urls[1:], ", "))
 	}
+	shutdownNotes(p, best, online)
 	if o.dryRun {
 		fmt.Println("  (dry run, nothing changed)")
 		return nil
 	}
-	if !confirm(o, fmt.Sprintf("  switch %s to %s?", tool, best.Name)) {
+	if !confirm(o, fmt.Sprintf("  switch %s to %s?", p.tool, best.Name)) {
 		return nil
 	}
-	return applyChange(tool, ad, urls)
+	return applyChange(p.tool, p.ad, urls)
 }
 
 func runStatus() error {

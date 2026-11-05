@@ -21,10 +21,6 @@ import (
 //go:embed mirrors.json
 var embeddedMirrors []byte
 
-// Mirrors change often; the list in the repo is newer than the one
-// built into an old binary.
-const remoteMirrorsURL = "https://raw.githubusercontent.com/Ali30mhi/rahyab/main/mirrors.json"
-
 type Mirror struct {
 	Name string `json:"name"`
 	URL  string `json:"url"`
@@ -39,47 +35,6 @@ var upstream = map[string]Mirror{
 	"docker": {"Official (Docker Hub)", "https://registry-1.docker.io"},
 	"ubuntu": {"Official (archive.ubuntu.com)", "http://archive.ubuntu.com/ubuntu"},
 	"debian": {"Official (deb.debian.org)", "http://deb.debian.org/debian"},
-}
-
-// loadMirrors uses --mirrors=FILE if given, otherwise the latest list from
-// the repo, falling back to the built-in one.
-func loadMirrors(path string, offline bool, timeout time.Duration) (MirrorList, error) {
-	if path != "" {
-		b, err := os.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-		return parseMirrors(b)
-	}
-	if !offline {
-		m, err := fetchMirrors(timeout)
-		if err == nil {
-			return m, nil
-		}
-		fmt.Printf("note: couldn't fetch the latest mirror list (%s), using the built-in one.\n", shortErr(err))
-	}
-	return parseMirrors(embeddedMirrors)
-}
-
-func fetchMirrors(timeout time.Duration) (MirrorList, error) {
-	if timeout > 5*time.Second {
-		timeout = 5 * time.Second
-	}
-	code, body, _, err := httpGet(newClient(timeout), remoteMirrorsURL, "")
-	if err != nil {
-		return nil, err
-	}
-	if code != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d", code)
-	}
-	m, err := parseMirrors(body)
-	if err != nil {
-		return nil, err
-	}
-	if len(m) == 0 {
-		return nil, errors.New("empty list")
-	}
-	return m, nil
 }
 
 func parseMirrors(data []byte) (MirrorList, error) {
@@ -106,6 +61,8 @@ type Result struct {
 	Version string
 	Date    time.Time
 	Stale   bool
+	NoSumDB bool // Go mirror without sum.golang.org; only matters during a shutdown
+	Skipped bool // not probed: the official source during a shutdown
 }
 
 // httpGet returns the time to the first response byte, not the full
@@ -213,13 +170,12 @@ func probe(c *http.Client, kind string, m Mirror, codename string) Result {
 		}
 		r.Version = doc.Version
 		// go checks every module against sum.golang.org, through the proxy
-		// only if the proxy says it supports that, otherwise directly.
+		// if the proxy supports it, otherwise directly. Directly works while
+		// the international internet is up, so a mirror without it is only
+		// a problem during a shutdown.
 		if m.URL != upstream["go"].URL {
 			sc, _, _, err := httpGet(c, join(m.URL, "sumdb/sum.golang.org/supported"), "")
-			if err != nil || sc != http.StatusOK {
-				r.Status = "no checksum (sumdb) proxy"
-				return r
-			}
+			r.NoSumDB = err != nil || sc != http.StatusOK
 		}
 	case "ubuntu", "debian":
 		t, ok := releaseDate(body)
@@ -230,6 +186,9 @@ func probe(c *http.Client, kind string, m Mirror, codename string) Result {
 		r.Date = t
 	}
 	r.OK, r.Status = true, "ok"
+	if r.NoSumDB {
+		r.Status = "ok, no checksum db"
+	}
 	return r
 }
 
@@ -391,11 +350,13 @@ func printResults(title string, res []Result) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	for _, r := range res {
 		mark := "✗"
-		if r.OK {
+		switch {
+		case r.Skipped:
+			mark = "-"
+		case r.OK && r.Stale:
+			mark = "!"
+		case r.OK:
 			mark = "✓"
-			if r.Stale {
-				mark = "!"
-			}
 		}
 		extra := r.Version
 		if !r.Date.IsZero() {
@@ -469,10 +430,12 @@ func leadingDigits(s string) string {
 func shortErr(err error) string {
 	s := err.Error()
 	switch {
-	case strings.Contains(s, "Client.Timeout"), strings.Contains(s, "deadline exceeded"):
-		return "timeout"
-	case strings.Contains(s, "no such host"):
+	// DNS first: a lookup that times out is a DNS problem, not a slow server,
+	// and during a shutdown that difference tells the user what to fix.
+	case strings.Contains(s, "dial tcp: lookup "), strings.Contains(s, "no such host"):
 		return "DNS failed"
+	case strings.Contains(s, "Client.Timeout"), strings.Contains(s, "deadline exceeded"), strings.Contains(s, "i/o timeout"):
+		return "timeout"
 	case strings.Contains(s, "connection refused"):
 		return "refused"
 	case strings.Contains(s, "connection reset"):
