@@ -4,18 +4,23 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 )
 
 var noProxy bool
+
+var proxyNote sync.Once
 
 func newClient(timeout time.Duration) *http.Client {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	if noProxy {
 		tr.Proxy = nil
 	} else if usingProxy() {
-		fmt.Println("note: a proxy/VPN is set, so results show the VPN route, not the Iranian network.")
-		fmt.Println("      Add --no-proxy to test the direct connection.")
+		proxyNote.Do(func() {
+			fmt.Println("note: a proxy/VPN is set, so results show the VPN route, not the Iranian network.")
+			fmt.Println("      Add --no-proxy to test the direct connection.")
+		})
 	}
 	return &http.Client{Timeout: timeout, Transport: tr}
 }

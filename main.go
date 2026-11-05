@@ -16,6 +16,9 @@ var stdin = bufio.NewReader(os.Stdin)
 type options struct {
 	yes     bool
 	dryRun  bool
+	print   bool
+	force   bool
+	offline bool
 	timeout time.Duration
 	mirrors string
 	tools   []string
@@ -24,17 +27,20 @@ type options struct {
 const usage = `rahyab - fix package downloads in Iran with one command
 
 Usage:
-  rahyab doctor             check what is blocked (changes nothing)
-  rahyab fix [tool...]      test mirrors and switch to the best one
-                            tools: pip npm go docker apt (default: all installed)
-  rahyab status             show current settings
-  rahyab undo               restore everything rahyab changed
+  rahyab doctor            check what is blocked (changes nothing)
+  rahyab fix [tool...]     test mirrors and switch to the best one
+                           tools: pip npm go docker apt (default: all installed)
+  rahyab status            show current settings
+  rahyab undo [tool...]    restore what rahyab changed
   rahyab version
 
 Flags:
   -y, --yes          don't ask for confirmation
   --dry-run          show what would change, change nothing
+  --print            print the commands instead of running them (scripts, Dockerfiles)
+  --force            undo: restore even if you changed the setting yourself since
   --no-proxy         ignore the proxy/VPN and test the direct connection
+  --offline          don't fetch the latest mirror list, use the built-in one
   --timeout=10s      timeout per request
   --mirrors=FILE     use a custom mirrors.json
 `
@@ -49,6 +55,12 @@ func parseArgs(args []string) (options, error) {
 			noProxy = true
 		case a == "--dry-run":
 			o.dryRun = true
+		case a == "--print":
+			o.print = true
+		case a == "--force":
+			o.force = true
+		case a == "--offline":
+			o.offline = true
 		case strings.HasPrefix(a, "--timeout="):
 			d, err := time.ParseDuration(strings.TrimPrefix(a, "--timeout="))
 			if err != nil {
