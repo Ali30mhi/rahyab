@@ -1,5 +1,9 @@
 # rahyab 🧭 (راه‌یاب)
 
+<p align="center">
+  <img src="docs/promo.svg" alt="rahyab demo" width="680">
+</p>
+
 [English](README.md)
 
 **با یک دستور، pip و npm و go و docker و apt دوباره در ایران کار می‌کنند، حتی در زمان قطعی اینترنت.**

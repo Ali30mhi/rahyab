@@ -1,5 +1,9 @@
 # rahyab 🧭
 
+<p align="center">
+  <img src="docs/promo.svg" alt="rahyab demo" width="680">
+</p>
+
 [فارسی](README.fa.md)
 
 **One command, and pip, npm, go, docker and apt work again in Iran, even during an internet shutdown.**
