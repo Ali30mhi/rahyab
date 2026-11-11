@@ -19,6 +19,7 @@ type options struct {
 	print   bool
 	force   bool
 	offline bool
+	help    bool
 	timeout time.Duration
 	mirrors string
 	tools   []string
@@ -41,14 +42,25 @@ Flags:
   --force            undo: restore even if you changed the setting yourself since
   --no-proxy         ignore the proxy/VPN and test the direct connection
   --offline          don't fetch the latest mirror list, use the built-in or cached one
-  --timeout=10s      timeout per request
+  --timeout=10s      timeout per request (--timeout 10s works too)
   --mirrors=FILE     use a custom mirrors.json
 `
 
 func parseArgs(args []string) (options, error) {
 	o := options{timeout: 10 * time.Second}
-	for _, a := range args {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		// "--timeout 5s" means the same as "--timeout=5s".
+		if a == "--timeout" || a == "--mirrors" {
+			if i+1 >= len(args) {
+				return o, fmt.Errorf("%s needs a value", a)
+			}
+			i++
+			a += "=" + args[i]
+		}
 		switch {
+		case a == "-h" || a == "--help":
+			o.help = true
 		case a == "-y" || a == "--yes":
 			o.yes = true
 		case a == "--no-proxy":
@@ -90,6 +102,10 @@ func main() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(2)
+	}
+	if o.help {
+		fmt.Print(usage)
+		return
 	}
 	switch os.Args[1] {
 	case "doctor":

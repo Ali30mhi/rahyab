@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -29,6 +30,11 @@ func TestEmbeddedMirrorsValid(t *testing.T) {
 				t.Errorf("%s: duplicate %q", kind, mm.URL)
 			}
 			seen[mm.URL] = true
+			// Only apt checks signatures itself; for the rest plain http
+			// would let anyone on the path swap packages.
+			if kind != "ubuntu" && kind != "debian" && !strings.HasPrefix(mm.URL, "https://") {
+				t.Errorf("%s: %q must use https", kind, mm.URL)
+			}
 		}
 	}
 }
@@ -135,10 +141,82 @@ func TestParseArgs(t *testing.T) {
 	if !o.print || !o.force || !o.offline || o.timeout != 3*time.Second || !reflect.DeepEqual(o.tools, []string{"pip", "npm"}) {
 		t.Errorf("got %+v", o)
 	}
-	for _, bad := range []string{"--timeout=0s", "--timeout=x", "--bogus"} {
+	for _, bad := range []string{"--timeout=0s", "--timeout=x", "--bogus", "--timeout", "--mirrors"} {
 		if _, err := parseArgs([]string{bad}); err == nil {
 			t.Errorf("%s: want error", bad)
 		}
+	}
+
+	o, err = parseArgs([]string{"--timeout", "4s", "go", "--mirrors", "m.json", "-h"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o.timeout != 4*time.Second || o.mirrors != "m.json" || !o.help || !reflect.DeepEqual(o.tools, []string{"go"}) {
+		t.Errorf("space-separated values: got %+v", o)
+	}
+}
+
+func TestCheckTools(t *testing.T) {
+	if err := checkTools(toolOrder); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkTools([]string{"pip", "nmp"}); err == nil || !strings.Contains(err.Error(), "nmp") {
+		t.Fatalf("typo: got %v", err)
+	}
+}
+
+func TestProxyEnv(t *testing.T) {
+	for _, k := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"} {
+		t.Setenv(k, "")
+	}
+	if usingProxy() || allProxyOnly() {
+		t.Fatal("no proxy set")
+	}
+	t.Setenv("ALL_PROXY", "socks5://127.0.0.1:1080")
+	if usingProxy() || !allProxyOnly() {
+		t.Fatal("ALL_PROXY alone is not used by net/http")
+	}
+	t.Setenv("HTTPS_PROXY", "http://127.0.0.1:8080")
+	if !usingProxy() || allProxyOnly() {
+		t.Fatal("HTTPS_PROXY is used")
+	}
+}
+
+// A restore that fails must fail the command and keep the undo info.
+func TestUndoReportsFailure(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("HOME", dir)
+	t.Setenv("AppData", dir)
+
+	old := adapters["npm"]
+	t.Cleanup(func() { adapters["npm"] = old })
+	broken := true
+	adapters["npm"] = adapter{
+		current: func() string { return "" },
+		restore: func(string, bool) error {
+			if broken {
+				return errors.New("boom")
+			}
+			return nil
+		},
+	}
+	if err := saveState(false, map[string]change{"npm": {Prev: "x", Had: true}}); err != nil {
+		t.Fatal(err)
+	}
+	o := options{tools: []string{"npm"}}
+	if err := runUndo(o); err == nil {
+		t.Fatal("failed restore: want error")
+	}
+	if st, _ := loadState(false); len(st) != 1 {
+		t.Fatalf("undo info lost after a failed restore: %+v", st)
+	}
+	broken = false
+	if err := runUndo(o); err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := loadState(false); len(st) != 0 {
+		t.Fatalf("restored tool still in state: %+v", st)
 	}
 }
 

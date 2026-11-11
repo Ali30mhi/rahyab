@@ -94,7 +94,20 @@ type plan struct {
 	err                  error
 }
 
+// checkTools catches typos before anything is probed or restored.
+func checkTools(tools []string) error {
+	for _, t := range tools {
+		if _, ok := adapters[t]; !ok {
+			return fmt.Errorf("unknown tool %q (use: %s)", t, strings.Join(toolOrder, ", "))
+		}
+	}
+	return nil
+}
+
 func runFix(o options) error {
+	if err := checkTools(o.tools); err != nil {
+		return err
+	}
 	ml, err := loadMirrors(o.mirrors, o.offline, o.timeout)
 	if err != nil {
 		return err
@@ -309,7 +322,10 @@ func runStatus() error {
 }
 
 func runUndo(o options) error {
-	found := false
+	if err := checkTools(o.tools); err != nil {
+		return err
+	}
+	found, failed := false, false
 	for _, sys := range stateStores() {
 		st, err := loadState(sys)
 		if err != nil {
@@ -341,6 +357,7 @@ func runUndo(o options) error {
 			}
 			if err := ad.restore(ch.Prev, ch.Had); err != nil {
 				fmt.Printf("  ✗ %s: %v\n", t, err)
+				failed = true
 				continue
 			}
 			delete(st, t)
@@ -355,6 +372,9 @@ func runUndo(o options) error {
 	}
 	if !found {
 		fmt.Println("Nothing to undo.")
+	}
+	if failed {
+		return errors.New("some settings could not be restored (see above)")
 	}
 	return nil
 }

@@ -55,10 +55,12 @@ fi
 
 chmod +x "$tmp/$name"
 dest="${RAHYAB_DIR:-/usr/local/bin}"
-if [ -w "$dest" ]; then
-  mv "$tmp/$name" "$dest/rahyab"
-else
-  sudo mv "$tmp/$name" "$dest/rahyab"
+# The directory may not exist yet (e.g. /usr/local/bin on a new Mac).
+sudo=""
+if ! mkdir -p "$dest" 2>/dev/null || [ ! -w "$dest" ]; then
+  sudo=sudo
+  sudo mkdir -p "$dest"
 fi
+$sudo mv "$tmp/$name" "$dest/rahyab"
 echo "installed to $dest/rahyab"
 "$dest/rahyab" version
