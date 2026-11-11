@@ -13,6 +13,8 @@ jobs:
         with:
           go-version: stable
           cache: false
+      - if: runner.os == 'Linux'
+        run: test -z "$(gofmt -l .)" && sh -n install.sh
       - run: go vet ./...
       - run: go test ./...
       - if: runner.os == 'Linux'
