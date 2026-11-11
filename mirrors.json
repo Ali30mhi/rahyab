@@ -22,7 +22,10 @@
     {"name": "HamDocker", "url": "https://hub.hamdocker.ir"},
     {"name": "MobinHost", "url": "https://docker.mobinhost.com"},
     {"name": "IranServer", "url": "https://docker.iranserver.com"},
-    {"name": "ParsPack", "url": "https://registry.docker.ir"}
+    {"name": "ParsPack", "url": "https://docker.abrha.net"},
+    {"name": "DockerIR", "url": "https://registry.docker.ir"},
+    {"name": "Pouyanit", "url": "https://docker.pouyanit.com"},
+    {"name": "ITO", "url": "https://archive.ito.gov.ir/docker"}
   ],
   "ubuntu": [
     {"name": "ArvanCloud", "url": "https://mirror.arvancloud.ir/ubuntu"},
